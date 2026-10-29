@@ -1,0 +1,40 @@
+name: Build Inkora APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'Inkora-modified-source.zip'
+      - '.github/workflows/build.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Extract source
+        run: unzip -q Inkora-modified-source.zip -d source
+      - name: Build APK
+        run: |
+          GRADLEW=$(find source -type f -name gradlew -print -quit)
+          if [ -z "$GRADLEW" ]; then echo 'gradlew not found'; exit 1; fi
+          PROJECT_DIR=$(dirname "$GRADLEW")
+          chmod +x "$GRADLEW"
+          cd "$PROJECT_DIR"
+          ./gradlew --no-daemon assembleDebug
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Inkora-debug-APK
+          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
